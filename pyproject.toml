@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "circlefitting"
+version = "0.1.0"
+description = "Minimum circumscribed circle fitting with GA, local search and PSO"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "pandas",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "tqdm"]
+
+[tool.setuptools.packages.find]
+include = ["circlefit*"]
