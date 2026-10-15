@@ -1,65 +1,47 @@
 import numpy as np
-# function hill_climbing(pts, max_iter, step0, restarts, patience, rng):
-def hill_climbing(pts,max_iter,step0,restarts,patience,rng):
+from model.base import Circle
+
+
+def random_start(pts, rng):
+    """Random circle inside the bounding box of the data"""
+    lo, hi = pts.min(axis=0), pts.max(axis=0)
+    cx, cy = rng.uniform(lo, hi)
+    r = rng.uniform(0.1, 0.5) * np.linalg.norm(hi - lo)
+    return Circle(cx, cy, r)
+
+
+def hill_climbing(pts, max_iter, step0, restarts, patience, rng):
     history = []
-    global_best=None
-    global_best_cost=None
-#     global_best = None
+    best = None
 
-#     for r in 1..restarts:
-#         x  = random_start()
-#         fx = cost(x)
-#         step = step0
-#         fails = 0
+    for _ in range(restarts):
+        x = random_start(pts, rng)
+        x.evaluate(pts)
+        step, fails = step0, 0
 
-    for r in range(restarts):
-        x=random_start()
-        fx=cost(x)
-        step=step0
-        fails=0
+        for _ in range(max_iter):
+            p = x.params() + rng.normal(0, step, size=3)
+            # radius must stay non-negative
+            cand = Circle(p[0], p[1], abs(p[2]))
+            cand.evaluate(pts)
 
-        for iteration in range(max_iter):
-            candidate=x+np.random.normal(0,step,size=2)
-            fc=cost(candidate)
-
-            if fc<fx:
-                x,fx=candidate,fc
-                fails=0
+            if cand.cost < x.cost:
+                x = cand
+                fails = 0
             else:
-                fails+=1
-            if fails>=patience:
-                step*=0.5
-                fails=0
+                fails += 1
 
-            history.append(min(fx,global_best_cost))
+            if fails >= patience:
+                # stuck, so use a finer step
+                step *= 0.5
+                fails = 0
 
-        if global_best is None or fx<global_best_cost:
-            global_best=x,fx
-            global_best_cost=fx
+            if best is None or x.cost < best.cost:
+                best = x
+            history.append(best.cost)
 
-    return global_best
+    return best, history
 
-
-#         for it in 1..max_iter:
-#             cand = x + rng.normal(0, step, size=2)
-#             fc = cost(cand)
-
-#             if fc < fx:
-#                 x, fx = cand, fc
-#                 fails = 0
-#             else:
-#                 fails += 1
-
-#             if fails >= patience:          # elakadt -> finomabb lépés
-#                 step *= 0.5
-#                 fails = 0
-
-#             history.append(min(fx, global_best_cost))
-
-#         if global_best is None or fx < global_best_cost:
-#             global_best = x, fx
-
-#     return global_best
 
 # function simulated_annealing(pts, max_iter, T0, alpha, step0, rng):
 #     x  = random_start()
