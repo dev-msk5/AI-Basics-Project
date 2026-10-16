@@ -1,5 +1,5 @@
 import numpy as np
-from model.base import Circle
+from model.base import Circle, CostBatch
 
 
 def random_start(pts, rng):
@@ -10,37 +10,55 @@ def random_start(pts, rng):
     return Circle(cx, cy, r)
 
 
-def hill_climbing(pts, max_iter, step0, restarts, patience, rng):
-    history = []
-    best = None
-
-    for _ in range(restarts):
-        x = random_start(pts, rng)
-        x.evaluate(pts)
-        step, fails = step0, 0
-
-        for _ in range(max_iter):
-            p = x.params() + rng.normal(0, step, size=3)
+def hill_climbing(pts, max_iter, step0, restarts, patience, rng, chunk=256):
+    """
+    Hill climbing, all restarts run together as one numpy batch
+ 
+    pts: array of shape (N, 2)
+    chunk: how many iterations of random noise are drawn at once
+ 
+    Returns:
+    best (Circle): the best circle found
+    history (np.ndarray): best cost over all restarts after each iteration
+    """
+    cost_of = CostBatch(pts, restarts)
+ 
+    # one row per restart: cx, cy, r
+    X = np.array([random_start(pts, rng).params() for _ in range(restarts)])
+    cost = cost_of(X)
+ 
+    step = np.full(restarts, step0)
+    fails = np.zeros(restarts, dtype=np.int64)
+    history = np.empty(max_iter)
+    cand = np.empty_like(X)
+ 
+    for start in range(0, max_iter, chunk):
+        stop = min(start + chunk, max_iter)
+        noise = rng.standard_normal((stop - start, restarts, 3))
+ 
+        for i in range(start, stop):
+            np.multiply(noise[i - start], step[:, None], out=cand)
+            cand += X
             # radius must stay non-negative
-            cand = Circle(p[0], p[1], abs(p[2]))
-            cand.evaluate(pts)
+            np.abs(cand[:, 2], out=cand[:, 2])
+            cand_cost = cost_of(cand)
+ 
+            better = cand_cost < cost
+            X[better] = cand[better]
+            cost[better] = cand_cost[better]
+ 
+            fails += 1
+            fails[better] = 0
+            stuck = fails >= patience
+            # stuck restarts get a finer step
+            step[stuck] *= 0.5
+            fails[stuck] = 0
+ 
+            history[i] = cost.min()
+ 
+    k = int(cost.argmin())
+    return Circle(X[k, 0], X[k, 1], X[k, 2], float(cost[k])), history
 
-            if cand.cost < x.cost:
-                x = cand
-                fails = 0
-            else:
-                fails += 1
-
-            if fails >= patience:
-                # stuck, so use a finer step
-                step *= 0.5
-                fails = 0
-
-            if best is None or x.cost < best.cost:
-                best = x
-            history.append(best.cost)
-
-    return best, history
 
 
 # function simulated_annealing(pts, max_iter, T0, alpha, step0, rng):
