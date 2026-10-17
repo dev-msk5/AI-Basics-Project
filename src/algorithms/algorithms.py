@@ -14,13 +14,21 @@ def hill_climbing(pts, max_iter, step0, restarts, patience, rng, chunk=256):
     """
     Hill climbing, all restarts run together as one numpy batch
  
+    
+    Parameters:
     pts: array of shape (N, 2)
-    chunk: how many iterations of random noise are drawn at once
+    max_iter: maximum number of iterations
+    step0: initial step size for random noise
+    restarts: number of random restarts
+    patience: number of iterations to wait for improvement before reducing step size
+    rng: numpy random generator
+    chunk: number of iterations to process at once, controls how many iterations of random noise are
  
     Returns:
     best (Circle): the best circle found
     history (np.ndarray): best cost over all restarts after each iteration
     """
+    # allocate buffers for cost evaluation
     cost_of = CostBatch(pts, restarts)
  
     # one row per restart: cx, cy, r
@@ -32,6 +40,7 @@ def hill_climbing(pts, max_iter, step0, restarts, patience, rng, chunk=256):
     history = np.empty(max_iter)
     cand = np.empty_like(X)
  
+    # 1 iteration = 1 step for each restart, parallelized in numpy
     for start in range(0, max_iter, chunk):
         stop = min(start + chunk, max_iter)
         noise = rng.standard_normal((stop - start, restarts, 3))
@@ -39,7 +48,7 @@ def hill_climbing(pts, max_iter, step0, restarts, patience, rng, chunk=256):
         for i in range(start, stop):
             np.multiply(noise[i - start], step[:, None], out=cand)
             cand += X
-            # radius must stay non-negative
+            # radius stays non-negative
             np.abs(cand[:, 2], out=cand[:, 2])
             cand_cost = cost_of(cand)
  
@@ -55,9 +64,12 @@ def hill_climbing(pts, max_iter, step0, restarts, patience, rng, chunk=256):
             fails[stuck] = 0
  
             history[i] = cost.min()
- 
-    k = int(cost.argmin())
-    return Circle(X[k, 0], X[k, 1], X[k, 2], float(cost[k])), history
+
+        # return the best circle, tightened to the farthest point
+        k = int(cost.argmin())
+
+    best = Circle(X[k, 0], X[k, 1], X[k, 2]).tighten(pts)
+    return best, history
 
 
 
