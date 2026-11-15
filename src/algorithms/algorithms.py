@@ -43,7 +43,7 @@ def random_start(pts, rng):
     """
     # the bound of the data
     lo, hi = pts.min(axis=0), pts.max(axis=0)
-    # the centers 
+    # the centers
     cx, cy = rng.uniform(lo, hi)
     # radius
     r = rng.uniform(0.1, 0.5) * np.linalg.norm(hi - lo)

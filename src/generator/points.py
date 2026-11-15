@@ -2,14 +2,15 @@ import numpy as np
 
 SEED = 42
 rng = np.random.default_rng(SEED)
- 
+
+
 def reset_seed(seed=SEED):
     """
     Recreate the global random generator so a run can be repeated exactly
- 
+
     Parameters:
     seed (int): The seed of the new generator
- 
+
     Returns:
     None
     """
@@ -17,7 +18,7 @@ def reset_seed(seed=SEED):
     rng = np.random.default_rng(seed)
 
 
-
+# ivdarab
 def get_angles(n, start, span, random_angles):
     """
     Create the parameter angles that place the points along a curve
@@ -53,6 +54,8 @@ def rotate(points, angle):
     c, s = np.cos(angle), np.sin(angle)
     return points @ np.array([[c, s], [-s, c]])
 
+# ponthiba
+
 
 def add_noise(points, noise):
     """
@@ -67,6 +70,8 @@ def add_noise(points, noise):
     np.ndarray: A new array of shape (n, 2) with the noisy points
     """
     return points + rng.normal(0, noise, points.shape)
+
+# ponthiba
 
 
 def add_outliers(points, ratio, scale):
@@ -90,6 +95,8 @@ def add_outliers(points, ratio, scale):
     points[idx] += rng.uniform(-scale, scale, (n, 2))
 
     return points
+
+# alakgeneralas hibakkal
 
 
 def circle_points(r, n, center=(0, 0), noise=0, start=0,

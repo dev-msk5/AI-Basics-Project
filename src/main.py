@@ -44,14 +44,22 @@ def run_method(name, method, pts, **kwargs):
 reset_seed(SEED)
 
 # pick one test set, the others stay here to switch quickly
-pts = circle_points(r=5, n=50, center=(1, -2), noise=0.3)
+# pts = circle_points(r=5, n=50, center=(1, -2), noise=0.3)
 # the circle the points came from, only drawn as a reference
-reference = Circle(1, -2, 5)
-pts = circle_points(r=5, n=50, noise=0.3, span=np.pi)
-# pts = ellipse_points(a=6, b=3, n=80, rotation=0.5, noise=0.1)
+reference = Circle(0, 0, 5)
+pts = circle_points(r=5, n=50, noise=0.0, span=np.pi*2, start=np.pi/4)
+# pts = ellipse_points(a=6, b=3, n=80, rotation=0.8, noise=0.3)
 # pts = polygon_points(sides=8, r=5, n=80, noise=0.1)
-pts = add_outliers(circle_points(r=5, n=100, noise=0.1), ratio=0.05, scale=10)
-pts = random_points(n=50, x_range=(-5, 5), y_range=(-5, 5))
+# pts = add_outliers(ellipse_points(
+#     a=6, b=3, n=100, rotation=0.8, noise=0.3), ratio=0.10, scale=4)
+# pts = random_points(n=50, x_range=(-5, 5), y_range=(-5, 5))
+
+# megtalalja optimalis megoldast, koltseg history
+# 2 zajjal terhelt
+# kulonbozo lepeseknel ertek
+# ertekeles, gyorsabban konvergal, lassabban, megtalalja
+# 5-10 cimmel , 6 + cimlap , kezdeti feltetel, milyen iteracióval dolgozik, miért konvergál / mekkora esély van rá
+
 
 hc_best, hc_hist, hc_time = run_method(
     "Hill climbing", hill_climbing, pts,
@@ -81,4 +89,4 @@ compare_cost_histories(
                     "Genetic algorithm": 50},
     logy=True)
 
-plot_solutions_overlay(pts, results, true_circle=reference)
+plot_solutions_overlay(pts, results, true_circle=None)
