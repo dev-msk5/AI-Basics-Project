@@ -47,8 +47,8 @@ reset_seed(SEED)
 # pts = circle_points(r=5, n=50, center=(1, -2), noise=0.3)
 # the circle the points came from, only drawn as a reference
 reference = Circle(0, 0, 5)
-pts = circle_points(r=5, n=50, noise=0.0, span=np.pi*2, start=np.pi/4)
-# pts = ellipse_points(a=6, b=3, n=80, rotation=0.8, noise=0.3)
+# pts = circle_points(r=5, n=50, noise=0.2, span=np.pi*2, start=np.pi/4)
+pts = ellipse_points(a=6, b=3, n=80, rotation=0.8, noise=0.3)
 # pts = polygon_points(sides=8, r=5, n=80, noise=0.1)
 # pts = add_outliers(ellipse_points(
 #     a=6, b=3, n=100, rotation=0.8, noise=0.3), ratio=0.10, scale=4)
