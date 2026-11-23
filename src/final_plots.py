@@ -1,3 +1,5 @@
+
+import itertools
 import os
 
 import numpy as np
@@ -7,6 +9,7 @@ from matplotlib.ticker import FuncFormatter
 from generator.points import (
     reset_seed,
     circle_points,
+    ellipse_points,
     polygon_points,
     random_points,
 )
@@ -44,43 +47,89 @@ LEGEND = {"points": "pontok", "reference": "referencia",
           "known optimum": "pontos optimum"}
 
 # the sets that get figures, remove a name to skip that set
-SELECTED = ["clean", "circle", "arc", "polygon", "random"]
+SELECTED = ["clean", "circle", "arc", "polygon", "random", "ellipse"]
+
+
+def exact_circle(pts):
+    """
+    Find the exact smallest enclosing circle by checking every circle that
+    is fixed by two or three points, it is meant for small sets (N < 200)
+
+    Parameters:
+    pts (np.ndarray): An array of shape (N, 2) with the points
+
+    Returns:
+    tuple: The centre x, the centre y and the radius of the circle
+    """
+    best = None
+
+    def covers(c, r):
+        return np.hypot(pts[:, 0] - c[0], pts[:, 1] - c[1]).max() <= r + 1e-9
+
+    for i, j in itertools.combinations(range(len(pts)), 2):
+        c = (pts[i] + pts[j]) / 2
+        r = np.linalg.norm(pts[i] - c)
+        if (best is None or r < best[2]) and covers(c, r):
+            best = (c[0], c[1], r)
+    for i, j, k in itertools.combinations(range(len(pts)), 3):
+        a, b, d = pts[i], pts[j], pts[k]
+        den = 2 * (a[0] * (b[1] - d[1]) + b[0] * (d[1] - a[1])
+                   + d[0] * (a[1] - b[1]))
+        if abs(den) < 1e-12:
+            continue
+        ux = (a @ a * (b[1] - d[1]) + b @ b * (d[1] - a[1])
+              + d @ d * (a[1] - b[1])) / den
+        uy = (a @ a * (d[0] - b[0]) + b @ b * (a[0] - d[0])
+              + d @ d * (b[0] - a[0])) / den
+        r = np.hypot(a[0] - ux, a[1] - uy)
+        if (best is None or r < best[2]) and covers((ux, uy), r):
+            best = (ux, uy, r)
+    return best
 
 
 def make_test_sets():
     """
-    Build the four test point sets, every set starts from the same seed
+    Build the five test point sets, every set starts from the same seed
 
     Parameters:
     None
 
     Returns:
     dict: Maps the file name of the set to a tuple of the points, the
-        circle the points came from (None if there is no such circle) and
-        the radius of the exact optimum (None if it is not known)
+        exact smallest enclosing circle of the points (the reference) and
+        the radius of that circle, which is also the cost of the optimum
     """
+    points = {}
+
+    reset_seed(SEED)
+    points["clean"] = circle_points(r=5, n=50, center=(1, -2), noise=0)
+
+    reset_seed(SEED)
+    points["circle"] = circle_points(r=5, n=50, center=(1, -2), noise=0.3)
+
+    reset_seed(SEED)
+    points["arc"] = circle_points(r=5, n=50, noise=0.3, span=np.pi)
+
+    reset_seed(SEED)
+    points["polygon"] = polygon_points(sides=8, r=5, n=80, noise=0.1)
+
+    reset_seed(SEED)
+    points["random"] = random_points(n=50, x_range=(-5, 5), y_range=(-5, 5))
+
+    reset_seed(SEED)
+    points["ellipse"] = ellipse_points(
+        a=7, b=4, n=80,
+        center=(1, -2),
+        rotation=np.deg2rad(25),
+        noise=0.1
+    )
+
+    # the reference is the exact optimum of every set, not the circle the
+    # points were generated from, because noise moves the optimum away from it
     sets = {}
-
-    # no noise, so the generating circle is the exact smallest enclosing circle
-    reset_seed(SEED)
-    sets["clean"] = (circle_points(r=5, n=50, center=(1, -2), noise=0),
-                     Circle(1, -2, 5), 5.0)
-
-    reset_seed(SEED)
-    sets["circle"] = (circle_points(r=5, n=50, center=(1, -2), noise=0.3),
-                      Circle(1, -2, 5), None)
-
-    reset_seed(SEED)
-    sets["arc"] = (circle_points(r=5, n=50, noise=0.3, span=np.pi),
-                   Circle(0, 0, 5), None)
-
-    reset_seed(SEED)
-    sets["polygon"] = (polygon_points(sides=8, r=5, n=80, noise=0.1),
-                       Circle(0, 0, 5), None)
-
-    reset_seed(SEED)
-    sets["random"] = (random_points(n=50, x_range=(-5, 5), y_range=(-5, 5)),
-                      None, None)
+    for name, pts in points.items():
+        cx, cy, r = exact_circle(pts)
+        sets[name] = (pts, Circle(cx, cy, r), float(r))
     return sets
 
 
@@ -115,9 +164,8 @@ def use_decimal_comma(axis):
     Returns:
     None
     """
-    old = axis.get_major_formatter()
     axis.set_major_formatter(
-        FuncFormatter(lambda v, pos: old(v, pos).replace(".", ",")))
+        FuncFormatter(lambda v, pos: f"{v:g}".replace(".", ",")))
 
 
 def translate_legend(ax, **kwargs):
@@ -169,11 +217,8 @@ def save_overlay(pts, solutions, reference, path):
     Parameters:
     pts (np.ndarray): An array of shape (N, 2) with the points
     solutions (dict): Maps the method name to the circle it found
-    reference (Circle): The circle the points came from, None to skip it
+    reference (Circle): The exact smallest enclosing circle, None to skip it
     path (str): The output file
-
-    Returns:
-    None
     """
     fig, ax = plt.subplots(figsize=(WIDTH, 3.0))
     plot_solutions_overlay(pts, solutions, true_circle=reference, title="",
@@ -190,7 +235,8 @@ def save_overlay(pts, solutions, reference, path):
 def main():
     """
     Run the three methods on the selected test sets and save two figures per
-    set as figures/<set>_history.png and figures/<set>_overlay.png
+    set as figures/<set>_history.png and figures/<set>_overlay.png, the
+    radius of the exact optimum and of every found circle is printed too
 
     Parameters:
     None
@@ -217,6 +263,10 @@ def main():
                      optimum)
         save_overlay(pts, solutions, reference,
                      os.path.join(OUT_DIR, f"{name}_overlay.png"))
+
+        # the radii are needed for the numbers in the text of the paper
+        found = ", ".join(f"{m}: {c.r:.3f}" for m, c in solutions.items())
+        print(f"{name}: optimum {optimum:.3f}, {found}")
 
 
 if __name__ == "__main__":
